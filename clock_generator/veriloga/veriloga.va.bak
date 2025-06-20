@@ -1,0 +1,48 @@
+// VerilogA for EESM_lib, clock_generator, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module clock_generator(clk);
+output clk; 
+electrical clk; 
+real clk_var1,clk_var2; //logical clock 
+integer clk_var3; // clock with the correct duty cycle
+real per1; //period variable
+
+parameter real t_rise = 1n;// risng time
+parameter real period_by2 = 25n;// half of the clock cycle  
+parameter real duty_cycle = 0.75;  //duty cycle
+parameter real noise_range = 0;  // noise range por power supply and ground -- half of the peak-to-peak voltage
+parameter real swing = 3.3;  //output voltage swing
+parameter real jitter_range = 0; //percent rage for gitter
+parameter real start_delay = 0; //delay of the clock at the start
+parameter real duty_period = 37.5n; // duty cycle-- calculated
+
+integer rand;
+real rand_real;
+
+analog 
+begin 
+@(initial_step) begin 
+per1=$abstime + period_by2 + jitter_range*2*period_by2*($random % 2) ; //set initial half period
+clk_var1=1; //set initial clock -- logic 1
+end 
+
+@(timer(0,per1))begin
+clk_var1=!clk_var1; //clock toggle
+per1=$abstime + period_by2 + jitter_range*2*period_by2*($random % 2) ; // update the new half-clock cycle with jitter
+end
+
+clk_var2=absdelay(clk_var1,period_by2-duty_period ); 
+// generate another clock signal with delay to adjust the duty cycle
+if ( duty_cycle > 0.5 ) begin
+clk_var3 = absdelay( clk_var1 || clk_var2, start_delay);//if duty cycle >0.5, the output signal should be or not and 
+end
+else begin
+clk_var3 = absdelay( clk_var1 && clk_var2, start_delay); //adjust the delay at the start
+end
+V(clk) <+ transition(swing*clk_var3 + noise_range*( $random % 2 ), 0, t_rise); 
+// transfer the logical clock to actual voltage clock with a swing specified in the parameter, add power and ground noises, and set rising & falling time
+end 
+endmodule 
